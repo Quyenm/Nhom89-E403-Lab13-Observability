@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 13 Chat UI</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #141b33;
+      --card-2: #0f162b;
+      --border: #243052;
+      --text: #e6ecff;
+      --muted: #9eb0de;
+      --accent: #57a0ff;
+      --good: #33c27f;
+      --bad: #ff6a6a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1000px 500px at 85% -20%, #25458a55 0%, transparent 60%),
+        radial-gradient(900px 400px at -20% 120%, #1c8e7f40 0%, transparent 60%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 28px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .links {
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 880px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--card), var(--card-2));
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0a1226;
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 9px 10px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #27375e;
+      color: var(--text);
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .status.good { color: var(--good); }
+    .status.bad { color: var(--bad); }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #071022;
+      padding: 10px;
+      min-height: 95px;
+      max-height: 360px;
+      overflow: auto;
+      color: #cfe0ff;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .meta {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0b1328;
+      padding: 8px;
+    }
+
+    .meta .k {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .meta .v {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 700;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="title">Day 13 Chat UI</div>
+      <div class="links">
+        <a href="/" target="_blank" rel="noopener">Dashboard</a>
+        <a href="/docs" target="_blank" rel="noopener">Swagger</a>
+        <a href="/health" target="_blank" rel="noopener">Health</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Request</h2>
+
+        <div class="field">
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" type="text" value="" />
+        </div>
+
+        <div class="field">
+          <label for="userId">User ID</label>
+          <input id="userId" type="text" value="u01" />
+        </div>
+
+        <div class="field">
+          <label for="sessionId">Session ID</label>
+          <input id="sessionId" type="text" value="s01" />
+        </div>
+
+        <div class="field">
+          <label for="feature">Feature</label>
+          <select id="feature">
+            <option value="qa">qa</option>
+            <option value="summary">summary</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="message">Message</label>
+          <textarea id="message">What is your refund policy? My email is student@vinuni.edu.vn</textarea>
+        </div>
+
+        <div class="actions">
+          <button id="sendBtn" type="button">Send Message</button>
+          <button id="clearBtn" class="secondary" type="button">Clear Output</button>
+        </div>
+
+        <div id="status" class="status">Ready</div>
+        <div class="hint">Tip: This page posts JSON to POST /chat and shows both body and headers.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Response</h2>
+
+        <div class="meta-grid">
+          <div class="meta">
+            <div class="k">HTTP Status</div>
+            <div id="metaStatus" class="v">-</div>
+          </div>
+          <div class="meta">
+            <div class="k">x-request-id</div>
+            <div id="metaReqId" class="v">-</div>
+          </div>
+          <div class="meta">
+            <div class="k">x-response-time-ms</div>
+            <div id="metaRespMs" class="v">-</div>
+          </div>
+          <div class="meta">
+            <div class="k">Round Trip (ms)</div>
+            <div id="metaRoundTrip" class="v">-</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Response JSON</label>
+          <pre id="responseBox">{}</pre>
+        </div>
+
+        <div class="field">
+          <label>Error / Logs</label>
+          <pre id="errorBox">No errors</pre>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const baseUrlInput = document.getElementById("baseUrl");
+    const userIdInput = document.getElementById("userId");
+    const sessionIdInput = document.getElementById("sessionId");
+    const featureInput = document.getElementById("feature");
+    const messageInput = document.getElementById("message");
+
+    const sendBtn = document.getElementById("sendBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    const statusEl = document.getElementById("status");
+    const responseBox = document.getElementById("responseBox");
+    const errorBox = document.getElementById("errorBox");
+
+    const metaStatus = document.getElementById("metaStatus");
+    const metaReqId = document.getElementById("metaReqId");
+    const metaRespMs = document.getElementById("metaRespMs");
+    const metaRoundTrip = document.getElementById("metaRoundTrip");
+
+    function prettyJson(obj) {
+      return JSON.stringify(obj, null, 2);
+    }
+
+    function setStatus(text, ok) {
+      statusEl.textContent = text;
+      statusEl.className = ok ? "status good" : "status bad";
+    }
+
+    function resetMeta() {
+      metaStatus.textContent = "-";
+      metaReqId.textContent = "-";
+      metaRespMs.textContent = "-";
+      metaRoundTrip.textContent = "-";
+    }
+
+    function getBaseUrl() {
+      const val = baseUrlInput.value.trim();
+      if (!val) {
+        return window.location.origin;
+      }
+      return val.replace(/\/$/, "");
+    }
+
+    async function sendMessage() {
+      const baseUrl = getBaseUrl();
+      const payload = {
+        user_id: userIdInput.value.trim(),
+        session_id: sessionIdInput.value.trim(),
+        feature: featureInput.value,
+        message: messageInput.value,
+      };
+
+      if (!payload.user_id || !payload.session_id || !payload.message) {
+        setStatus("Missing required fields", false);
+        return;
+      }
+
+      responseBox.textContent = "{}";
+      errorBox.textContent = "No errors";
+      resetMeta();
+      setStatus("Sending...", true);
+
+      const start = performance.now();
+      try {
+        const res = await fetch(baseUrl + "/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const roundTrip = Math.round(performance.now() - start);
+        let body;
+        try {
+          body = await res.json();
+        } catch (e) {
+          body = { detail: "Failed to parse JSON response", raw: String(e) };
+        }
+
+        metaStatus.textContent = String(res.status);
+        metaReqId.textContent = res.headers.get("x-request-id") || "-";
+        metaRespMs.textContent = res.headers.get("x-response-time-ms") || "-";
+        metaRoundTrip.textContent = String(roundTrip);
+        responseBox.textContent = prettyJson(body);
+
+        if (res.ok) {
+          setStatus("Message sent successfully", true);
+        } else {
+          setStatus("Request failed", false);
+          errorBox.textContent = prettyJson({
+            status: res.status,
+            statusText: res.statusText,
+            detail: body,
+          });
+        }
+      } catch (err) {
+        setStatus("Network error", false);
+        errorBox.textContent = prettyJson({
+          error: String(err),
+          hint: "Check if API server is running on the base URL.",
+        });
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    clearBtn.addEventListener("click", () => {
+      responseBox.textContent = "{}";
+      errorBox.textContent = "No errors";
+      resetMeta();
+      setStatus("Cleared", true);
+    });
+
+    baseUrlInput.value = window.location.origin;
+  </script>
+</body>
+</html>

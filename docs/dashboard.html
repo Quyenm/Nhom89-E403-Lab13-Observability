@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Day 13 — Observability Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --cyan: #06b6d4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .02em; }
+  header h1 span { color: var(--blue); }
+  #status-pill {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    background: #162032;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+  }
+  #last-updated { font-size: 0.72rem; color: var(--muted); }
+
+  .toolbar {
+    padding: 10px 24px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .toolbar label { font-size: 0.8rem; color: var(--muted); }
+  .toolbar input[type=text] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    width: 220px;
+  }
+  .toolbar button {
+    background: var(--blue);
+    border: none;
+    color: #fff;
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .toolbar button:hover { opacity: 0.85; }
+  .refresh-note { font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 20px 24px;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 580px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .big-stat { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+  .big-unit { font-size: 0.9rem; color: var(--muted); margin-left: 4px; }
+  .sub-row { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .sub-item label { font-size: 0.68rem; color: var(--muted); display: block; }
+  .sub-item span { font-size: 0.92rem; font-weight: 600; }
+
+  .slo-bar-wrap { margin-top: 10px; }
+  .slo-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+  .slo-bar { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+  .slo-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+
+  .error-list { margin-top: 8px; font-size: 0.8rem; }
+  .error-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .error-row:last-child { border-bottom: none; }
+  .error-type { color: var(--muted); }
+  .error-count { font-weight: 700; color: var(--red); }
+
+  .incident-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+  .incident-row:last-child { border-bottom: none; }
+  .badge { padding: 2px 9px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; }
+  .badge.on { background: #3b1515; color: var(--red); border: 1px solid var(--red); }
+  .badge.off { background: #162516; color: var(--green); border: 1px solid var(--green); }
+
+  .good { color: var(--green); }
+  .warn { color: var(--yellow); }
+  .bad  { color: var(--red); }
+
+  canvas { width: 100% !important; margin-top: 10px; }
+  .sparkline-wrap { height: 70px; margin-top: 10px; position: relative; }
+  svg.spark { width: 100%; height: 70px; }
+
+  .alert-strip {
+    margin: 0 24px 16px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: none;
+  }
+  .alert-strip.show { display: block; }
+  .alert-strip.p1 { background: #3b0d0d; border: 1px solid var(--red); color: var(--red); }
+  .alert-strip.p2 { background: #3b2800; border: 1px solid var(--yellow); color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔭 Day 13 <span>Observability</span> Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:14px">
+    <span id="last-updated">—</span>
+    <span id="status-pill">connecting…</span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <label>App URL</label>
+  <input type="text" id="app-url" value="http://127.0.0.1:8000" />
+  <button onclick="fetchAll()">Refresh</button>
+  <span class="refresh-note">Auto-refresh every 15s</span>
+</div>
+
+<div id="alert-zone"></div>
+
+<div class="grid">
+
+  <div class="panel" id="panel-latency">
+    <div class="panel-title">⏱ Latency (ms)</div>
+    <div class="big-stat" id="lat-p95">—</div><span class="big-unit">P95</span>
+    <div class="sub-row">
+      <div class="sub-item"><label>P50</label><span id="lat-p50">—</span></div>
+      <div class="sub-item"><label>P99</label><span id="lat-p99">—</span></div>
+    </div>
+    <div class="slo-bar-wrap">
+      <div class="slo-label"><span>SLO 3000ms</span><span id="lat-slo-pct">—</span></div>
+      <div class="slo-bar"><div class="slo-fill" id="lat-slo-bar" style="background:var(--green);width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-traffic">
+    <div class="panel-title">📊 Traffic</div>
+    <div class="big-stat" id="traffic-total">—</div><span class="big-unit">total requests</span>
+    <div class="sub-row">
+      <div class="sub-item"><label>Last 1h</label><span id="traffic-1h">—</span></div>
+    </div>
+    <div class="sparkline-wrap">
+      <svg class="spark" id="traffic-spark" viewBox="0 0 200 60" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-errors">
+    <div class="panel-title">🚨 Error Rate</div>
+    <div class="big-stat" id="error-rate">—</div><span class="big-unit">%</span>
+    <div class="sub-row">
+      <div class="sub-item"><label>Total errors</label><span id="error-count">—</span></div>
+      <div class="sub-item"><label>SLO budget</label><span>2%</span></div>
+    </div>
+    <div id="error-breakdown" class="error-list"></div>
+  </div>
+
+  <div class="panel" id="panel-cost">
+    <div class="panel-title">💰 Cost</div>
+    <div class="big-stat" id="cost-1h">—</div><span class="big-unit">USD last 1h</span>
+    <div class="sub-row">
+      <div class="sub-item"><label>Total</label><span id="cost-total">—</span></div>
+      <div class="sub-item"><label>Avg/req</label><span id="cost-avg">—</span></div>
+    </div>
+    <div class="slo-bar-wrap">
+      <div class="slo-label"><span>Daily budget $2.50</span><span id="cost-slo-pct">—</span></div>
+      <div class="slo-bar"><div class="slo-fill" id="cost-slo-bar" style="background:var(--green);width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-tokens">
+    <div class="panel-title">🔢 Tokens</div>
+    <div class="big-stat" id="tokens-out">—</div><span class="big-unit">out total</span>
+    <div class="sub-row">
+      <div class="sub-item"><label>Tokens in</label><span id="tokens-in">—</span></div>
+      <div class="sub-item"><label>Ratio out/in</label><span id="tokens-ratio">—</span></div>
+    </div>
+    <div class="sparkline-wrap">
+      <svg class="spark" id="tokens-spark" viewBox="0 0 200 60" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-quality">
+    <div class="panel-title">⭐ Quality Score</div>
+    <div class="big-stat" id="quality-avg">—</div><span class="big-unit">avg (0–1)</span>
+    <div class="sub-row">
+      <div class="sub-item"><label>Min</label><span id="quality-min">—</span></div>
+      <div class="sub-item"><label>Max</label><span id="quality-max">—</span></div>
+    </div>
+    <div class="slo-bar-wrap">
+      <div class="slo-label"><span>SLO ≥ 0.75</span><span id="quality-slo-pct">—</span></div>
+      <div class="slo-bar"><div class="slo-fill" id="quality-slo-bar" style="background:var(--green);width:0%"></div></div>
+    </div>
+    <div id="incident-list" class="error-list" style="margin-top:12px"></div>
+  </div>
+
+</div>
+
+<script>
+const HISTORY = { traffic: [], tokens: [] };
+const MAX_HIST = 20;
+
+function fmt(n, decimals = 0) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toFixed(decimals);
+}
+
+function colorClass(val, warn, bad) {
+  if (val >= bad) return 'bad';
+  if (val >= warn) return 'warn';
+  return 'good';
+}
+
+function colorClassInverted(val, warn, bad) {
+  if (val <= bad) return 'bad';
+  if (val <= warn) return 'warn';
+  return 'good';
+}
+
+function setColor(el, cls) {
+  el.className = cls;
+}
+
+function barColor(pct) {
+  if (pct > 90) return 'var(--red)';
+  if (pct > 70) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function drawSparkline(svgId, data, color) {
+  const svg = document.getElementById(svgId);
+  if (!svg || data.length < 2) return;
+  const W = 200, H = 60, pad = 4;
+  const mn = Math.min(...data), mx = Math.max(...data);
+  const range = mx - mn || 1;
+  const pts = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (W - pad * 2);
+    const y = H - pad - ((v - mn) / range) * (H - pad * 2);
+    return `${x},${y}`;
+  });
+  svg.innerHTML = `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+}
+
+function updateAlerts(d) {
+  const zone = document.getElementById('alert-zone');
+  zone.innerHTML = '';
+  const alerts = [];
+  if (d.error_rate_pct > 5) alerts.push({ cls: 'p1', msg: '🚨 P1 ALERT: Error rate > 5% — users experiencing failures' });
+  else if (d.error_rate_pct > 2) alerts.push({ cls: 'p2', msg: '⚠️  P2 ALERT: Error rate > 2% — approaching SLO breach' });
+  if (d.latency_p95 > 5000) alerts.push({ cls: 'p1', msg: '🚨 P2 ALERT: Latency P95 > 5000ms — SLO breached' });
+  else if (d.latency_p95 > 3000) alerts.push({ cls: 'p2', msg: '⚠️  P2 ALERT: Latency P95 > 3000ms — SLO warning' });
+  if (d.cost_last_1h_usd > 0.1) alerts.push({ cls: 'p2', msg: `⚠️  P2 ALERT: High hourly cost $${fmt(d.cost_last_1h_usd, 4)} — check for cost_spike incident` });
+  if (d.quality_avg < 0.7 && d.traffic > 0) alerts.push({ cls: 'p2', msg: '⚠️  P3 ALERT: Quality avg < 0.70 — check RAG retrieval' });
+  alerts.forEach(a => {
+    const div = document.createElement('div');
+    div.className = `alert-strip show ${a.cls}`;
+    div.style.margin = '0 24px 8px';
+    div.textContent = a.msg;
+    zone.appendChild(div);
+  });
+}
+
+async function fetchHealth(base) {
+  try {
+    const r = await fetch(`${base}/health`);
+    return await r.json();
+  } catch { return null; }
+}
+
+async function fetchAll() {
+  const base = document.getElementById('app-url').value.replace(/\/$/, '');
+  const pill = document.getElementById('status-pill');
+  const upd = document.getElementById('last-updated');
+
+  try {
+    const [mRes, hRes] = await Promise.all([
+      fetch(`${base}/metrics`),
+      fetchHealth(base),
+    ]);
+
+    if (!mRes.ok) throw new Error(`HTTP ${mRes.status}`);
+    const d = await mRes.json();
+
+    pill.textContent = '● live';
+    pill.style.color = 'var(--green)';
+    pill.style.borderColor = 'var(--green)';
+    upd.textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+    document.getElementById('lat-p95').textContent = fmt(d.latency_p95);
+    document.getElementById('lat-p50').textContent = fmt(d.latency_p50);
+    document.getElementById('lat-p99').textContent = fmt(d.latency_p99);
+    const latPct = Math.min(100, (d.latency_p95 / 3000) * 100);
+    document.getElementById('lat-slo-bar').style.width = latPct + '%';
+    document.getElementById('lat-slo-bar').style.background = barColor(latPct);
+    document.getElementById('lat-slo-pct').textContent = fmt(latPct, 1) + '%';
+    const latEl = document.getElementById('lat-p95');
+    setColor(latEl, colorClass(d.latency_p95, 3000, 5000));
+
+    document.getElementById('traffic-total').textContent = d.traffic;
+    document.getElementById('traffic-1h').textContent = d.traffic_last_1h ?? '—';
+    HISTORY.traffic.push(d.traffic);
+    if (HISTORY.traffic.length > MAX_HIST) HISTORY.traffic.shift();
+    drawSparkline('traffic-spark', HISTORY.traffic, 'var(--blue)');
+
+    const errRate = d.error_rate_pct ?? 0;
+    const errEl = document.getElementById('error-rate');
+    errEl.textContent = fmt(errRate, 2);
+    setColor(errEl, colorClass(errRate, 2, 5));
+    document.getElementById('error-count').textContent = d.error_count ?? 0;
+    const errBreak = document.getElementById('error-breakdown');
+    const errs = d.error_breakdown ?? {};
+    if (Object.keys(errs).length) {
+      errBreak.innerHTML = Object.entries(errs).map(([k, v]) =>
+        `<div class="error-row"><span class="error-type">${k}</span><span class="error-count">${v}</span></div>`
+      ).join('');
+    } else {
+      errBreak.innerHTML = '<div style="color:var(--green);font-size:.78rem;margin-top:8px">✅ No errors recorded</div>';
+    }
+
+    document.getElementById('cost-1h').textContent = '$' + fmt(d.cost_last_1h_usd ?? 0, 6);
+    document.getElementById('cost-total').textContent = '$' + fmt(d.total_cost_usd, 4);
+    document.getElementById('cost-avg').textContent = '$' + fmt(d.avg_cost_usd, 6);
+    const costPct = Math.min(100, ((d.cost_last_1h_usd ?? 0) / 2.5) * 100 * 24);
+    document.getElementById('cost-slo-bar').style.width = costPct + '%';
+    document.getElementById('cost-slo-bar').style.background = barColor(costPct);
+    document.getElementById('cost-slo-pct').textContent = fmt(costPct, 1) + '%';
+
+    const tokOut = d.tokens_out_total ?? 0;
+    const tokIn = d.tokens_in_total ?? 0;
+    document.getElementById('tokens-out').textContent = tokOut.toLocaleString();
+    document.getElementById('tokens-in').textContent = tokIn.toLocaleString();
+    document.getElementById('tokens-ratio').textContent = tokIn > 0 ? fmt(tokOut / tokIn, 2) : '—';
+    HISTORY.tokens.push(tokOut);
+    if (HISTORY.tokens.length > MAX_HIST) HISTORY.tokens.shift();
+    drawSparkline('tokens-spark', HISTORY.tokens, 'var(--purple)');
+
+    const qAvg = d.quality_avg ?? 0;
+    const qEl = document.getElementById('quality-avg');
+    qEl.textContent = fmt(qAvg, 3);
+    setColor(qEl, colorClassInverted(qAvg, 0.75, 0.6));
+    document.getElementById('quality-min').textContent = fmt(d.quality_min, 3);
+    document.getElementById('quality-max').textContent = fmt(d.quality_max, 3);
+    const qPct = Math.min(100, (qAvg / 1.0) * 100);
+    document.getElementById('quality-slo-bar').style.width = qPct + '%';
+    document.getElementById('quality-slo-bar').style.background = qAvg >= 0.75 ? 'var(--green)' : qAvg >= 0.6 ? 'var(--yellow)' : 'var(--red)';
+    document.getElementById('quality-slo-pct').textContent = fmt(qPct, 1) + '%';
+
+    if (hRes) {
+      const inc = hRes.incidents ?? {};
+      const incDiv = document.getElementById('incident-list');
+      incDiv.innerHTML = '<div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Incident Toggles</div>' +
+        Object.entries(inc).map(([k, v]) =>
+          `<div class="incident-row"><span>${k}</span><span class="badge ${v ? 'on' : 'off'}">${v ? 'ACTIVE' : 'off'}</span></div>`
+        ).join('');
+    }
+
+    updateAlerts(d);
+
+  } catch (e) {
+    pill.textContent = '● offline';
+    pill.style.color = 'var(--red)';
+    pill.style.borderColor = 'var(--red)';
+    upd.textContent = 'Failed: ' + e.message;
+  }
+}
+
+fetchAll();
+setInterval(fetchAll, 15000);
+</script>
+</body>
+</html>
