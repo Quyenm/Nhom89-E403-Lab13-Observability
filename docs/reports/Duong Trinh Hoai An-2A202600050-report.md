@@ -1,4 +1,4 @@
-# BÁO CÁO CÁ NHÂN — MEMBER D
+# BÁO CÁO CÁ NHÂN
 
 **Họ tên**: Dương Trịnh Hoài An - 2A202600050  
 **Vai trò**: Load Test + Inject Incidents  
@@ -9,7 +9,7 @@
 
 ## 1. Tóm tắt công việc đảm nhận
 
-Member D chịu trách nhiệm **kiểm thử hệ thống dưới tải** và **mô phỏng sự cố**. Mục tiêu: tạo đủ traffic để hệ thống observability có dữ liệu thực tế, và chứng minh rằng khi sự cố xảy ra, team có thể phát hiện và debug trong thời gian ngắn.
+Tôi chịu trách nhiệm **kiểm thử hệ thống dưới tải** và **mô phỏng sự cố**. Mục tiêu: tạo đủ traffic để hệ thống observability có dữ liệu thực tế, và chứng minh rằng khi sự cố xảy ra, team có thể phát hiện và debug trong thời gian ngắn.
 
 ---
 
@@ -169,5 +169,5 @@ Quan sát:
 
 1. **P-percentile không cần numpy**: `sorted()` + index calculation đủ chính xác cho lab.
 2. **Auto-disable (`--duration`) thiết yếu cho demo**: Tránh quên tắt incident → production vẫn chạy scenario lỗi sau demo.
-3. **Concurrency test phát hiện context leak**: Chạy `--concurrency 5` giúp kiểm tra `clear_contextvars()` của Member A có hoạt động không (nếu thiếu, correlation_id sẽ bị trộn lẫn).
+3. **Concurrency test phát hiện context leak**: Chạy `--concurrency 5` giúp kiểm tra `clear_contextvars()` của bạn Đạt (Logging + PII) có hoạt động không (nếu thiếu, correlation_id sẽ bị trộn lẫn).
 4. **`sys.exit(1)` trong validate_logs**: Cho phép dùng trong CI pipeline — build fail nếu log quality dưới ngưỡng.
