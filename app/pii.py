@@ -4,11 +4,15 @@ import hashlib
 import re
 
 PII_PATTERNS: dict[str, str] = {
-    "email": r"[\w\.-]+@[\w\.-]+\.\w+",
-    "phone_vn": r"(?:\+84|0)[ \.-]?\d{3}[ \.-]?\d{3}[ \.-]?\d{3,4}", # Matches 090 123 4567, 090.123.4567, etc.
-    "cccd": r"\b\d{12}\b",
+    "jwt_token": r"\beyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\b",
+    "api_key": r"\b(?:sk|pk|rk|ak)[_\-][A-Za-z0-9]{16,}\b",
     "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",
-    # TODO: Add more patterns (e.g., Passport, Vietnamese address keywords)
+    "cccd": r"\b\d{12}\b",
+    "passport": r"\b[A-Z]{1,2}\d{6,9}\b",
+    "email": r"[\w\.\+\-]+@[\w\.\-]+\.\w{2,}",
+    "phone_vn": r"(?:\+84|0)[ \.\-]?\d{3}[ \.\-]?\d{3}[ \.\-]?\d{3,4}",
+    "ip_address": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
+    "vn_address": r"(?i)\b(?:số\s*\d+|phường|quận|huyện|xã|tỉnh|thành phố|tp\.?|đường|ngõ|ngách|thôn|ấp)\b[^,\n]{0,60}",
 }
 
 

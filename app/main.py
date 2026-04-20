@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from structlog.contextvars import bind_contextvars
 
 from .agent import LabAgent
@@ -20,6 +21,9 @@ log = get_logger()
 app = FastAPI(title="Day 13 Observability Lab")
 app.add_middleware(CorrelationIdMiddleware)
 agent = LabAgent()
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DASHBOARD_PATH = PROJECT_ROOT / "docs" / "dashboard.html"
+CHAT_UI_PATH = PROJECT_ROOT / "docs" / "chat.html"
 
 
 @app.on_event("startup")
@@ -29,6 +33,52 @@ async def startup() -> None:
         service=os.getenv("APP_NAME", "day13-observability-lab"),
         env=os.getenv("APP_ENV", "dev"),
         payload={"tracing_enabled": tracing_enabled()},
+    )
+
+
+@app.get("/")
+async def root():
+    if DASHBOARD_PATH.exists():
+        return FileResponse(DASHBOARD_PATH, media_type="text/html")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "ok": False,
+            "detail": "Dashboard file not found.",
+            "expected_path": str(DASHBOARD_PATH),
+            "fallback": "/api",
+        },
+    )
+
+
+@app.get("/api")
+async def api_info() -> dict:
+    return {
+        "service": "day13-observability-lab",
+        "ok": True,
+        "message": "Use /docs for interactive API docs and / for the dashboard.",
+        "endpoints": {
+            "dashboard": "/",
+            "chat_ui": "/chat-ui",
+            "health": "/health",
+            "metrics": "/metrics",
+            "docs": "/docs",
+            "chat": "POST /chat",
+        },
+    }
+
+
+@app.get("/chat-ui")
+async def chat_ui():
+    if CHAT_UI_PATH.exists():
+        return FileResponse(CHAT_UI_PATH, media_type="text/html")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "ok": False,
+            "detail": "Chat UI file not found.",
+            "expected_path": str(CHAT_UI_PATH),
+        },
     )
 
 
@@ -44,9 +94,14 @@ async def metrics() -> dict:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: Request, body: ChatRequest) -> ChatResponse:
-    # TODO: Enrich logs with request context (user_id_hash, session_id, feature, model, env)
-    # bind_contextvars(...)
-    
+    bind_contextvars(
+        user_id_hash=hash_user_id(body.user_id),
+        session_id=body.session_id,
+        feature=body.feature,
+        model=agent.model,
+        env=os.getenv("APP_ENV", "dev"),
+    )
+
     log.info(
         "request_received",
         service="api",
@@ -77,7 +132,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             cost_usd=result.cost_usd,
             quality_score=result.quality_score,
         )
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         error_type = type(exc).__name__
         record_error(error_type)
         log.error(
