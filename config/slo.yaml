@@ -1,16 +1,58 @@
 service: day13-observability-lab
 window: 28d
+owner: team-oncall
+version: "1.0"
+
 slis:
   latency_p95_ms:
+    description: "95th percentile end-to-end latency for /chat endpoint"
     objective: 3000
     target: 99.5
-    note: Replace with your group's target
+    unit: ms
+    measurement: histogram_quantile(0.95, latency_ms)
+    warning_threshold: 2500
+    alert: high_latency_p95
+
+  latency_p99_ms:
+    description: "99th percentile latency — guards against worst-case tail"
+    objective: 8000
+    target: 99.0
+    unit: ms
+    measurement: histogram_quantile(0.99, latency_ms)
+    warning_threshold: 6000
+    alert: high_latency_p99
+
   error_rate_pct:
+    description: "Fraction of /chat requests that return HTTP 5xx"
     objective: 2
     target: 99.0
+    unit: percent
+    measurement: errors / total_requests * 100
+    warning_threshold: 1
+    alert: high_error_rate
+
   daily_cost_usd:
+    description: "Total inference cost per calendar day (UTC)"
     objective: 2.5
     target: 100.0
+    unit: USD
+    measurement: sum(cost_usd) over 1d
+    warning_threshold: 2.0
+    alert: cost_budget_spike
+
   quality_score_avg:
+    description: "Average heuristic quality score across all responses (0–1)"
     objective: 0.75
     target: 95.0
+    unit: score
+    measurement: mean(quality_score)
+    warning_threshold: 0.80
+    alert: quality_degradation
+
+error_budget:
+  latency_p95_ms:
+    window_minutes: 40320
+    allowed_violation_minutes: 201.6
+  error_rate_pct:
+    window_minutes: 40320
+    allowed_violation_minutes: 403.2

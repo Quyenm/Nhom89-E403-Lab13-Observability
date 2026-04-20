@@ -1,19 +1,79 @@
 alerts:
   - name: high_latency_p95
     severity: P2
-    condition: latency_p95_ms > 5000 for 30m
+    condition: latency_p95_ms > 3000 for 5m
+    sustained_condition: latency_p95_ms > 5000 for 30m
     type: symptom-based
     owner: team-oncall
     runbook: docs/alerts.md#1-high-latency-p95
+    annotations:
+      summary: "P95 latency exceeded SLO threshold"
+      description: "The 95th percentile latency has breached 3 seconds, impacting user experience."
+    recovery_condition: latency_p95_ms < 2500 for 5m
+
+  - name: high_latency_p99
+    severity: P3
+    condition: latency_p99_ms > 8000 for 15m
+    type: symptom-based
+    owner: team-oncall
+    runbook: docs/alerts.md#1-high-latency-p95
+    annotations:
+      summary: "P99 latency exceeded tail-latency SLO"
+      description: "Worst-case requests are taking over 8 seconds; check for hot-path bottlenecks."
+    recovery_condition: latency_p99_ms < 6000 for 5m
+
   - name: high_error_rate
     severity: P1
-    condition: error_rate_pct > 5 for 5m
+    condition: error_rate_pct > 2 for 2m
+    sustained_condition: error_rate_pct > 5 for 5m
     type: symptom-based
     owner: team-oncall
     runbook: docs/alerts.md#2-high-error-rate
+    annotations:
+      summary: "Error rate exceeds SLO budget"
+      description: "HTTP 5xx rate is above 2%. Users are receiving failures."
+    recovery_condition: error_rate_pct < 1 for 5m
+
   - name: cost_budget_spike
     severity: P2
     condition: hourly_cost_usd > 2x_baseline for 15m
-    type: symptom-based
+    type: cause-based
     owner: finops-owner
     runbook: docs/alerts.md#3-cost-budget-spike
+    annotations:
+      summary: "Inference cost burning above expected rate"
+      description: "Hourly cost is more than 2x baseline. Check for token abuse or cost_spike incident."
+    recovery_condition: hourly_cost_usd < 1.5x_baseline for 10m
+
+  - name: quality_degradation
+    severity: P3
+    condition: quality_score_avg < 0.7 for 10m
+    type: cause-based
+    owner: team-oncall
+    runbook: docs/alerts.md#4-quality-degradation
+    annotations:
+      summary: "Response quality below acceptable threshold"
+      description: "Average heuristic quality score dropped below 0.7. Check RAG retrieval or LLM output."
+    recovery_condition: quality_score_avg > 0.75 for 5m
+
+  - name: rag_tool_failure
+    severity: P1
+    condition: error_type="RuntimeError" AND tool_name="rag.retrieve" AND count > 3 for 1m
+    type: cause-based
+    owner: team-oncall
+    runbook: docs/alerts.md#5-rag-tool-failure
+    annotations:
+      summary: "RAG retrieval tool is throwing repeated errors"
+      description: "Vector store appears to be unavailable. Responses will fall back to generic answers."
+    recovery_condition: error_type="RuntimeError" count == 0 for 2m
+
+  - name: no_traffic
+    severity: P2
+    condition: request_count == 0 for 10m
+    type: symptom-based
+    owner: team-oncall
+    runbook: docs/alerts.md#6-no-traffic
+    annotations:
+      summary: "No requests received for 10 minutes"
+      description: "Either the service is down, or upstream routing is broken."
+    recovery_condition: request_count > 0 for 1m

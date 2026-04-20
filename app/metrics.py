@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import time
 from collections import Counter
 from statistics import mean
+from typing import Iterator
 
 REQUEST_LATENCIES: list[int] = []
 REQUEST_COSTS: list[float] = []
@@ -10,9 +12,17 @@ REQUEST_TOKENS_OUT: list[int] = []
 ERRORS: Counter[str] = Counter()
 TRAFFIC: int = 0
 QUALITY_SCORES: list[float] = []
+REQUEST_TIMESTAMPS: list[float] = []
+ERROR_TIMESTAMPS: list[float] = []
 
 
-def record_request(latency_ms: int, cost_usd: float, tokens_in: int, tokens_out: int, quality_score: float) -> None:
+def record_request(
+    latency_ms: int,
+    cost_usd: float,
+    tokens_in: int,
+    tokens_out: int,
+    quality_score: float,
+) -> None:
     global TRAFFIC
     TRAFFIC += 1
     REQUEST_LATENCIES.append(latency_ms)
@@ -20,12 +30,12 @@ def record_request(latency_ms: int, cost_usd: float, tokens_in: int, tokens_out:
     REQUEST_TOKENS_IN.append(tokens_in)
     REQUEST_TOKENS_OUT.append(tokens_out)
     QUALITY_SCORES.append(quality_score)
-
+    REQUEST_TIMESTAMPS.append(time.time())
 
 
 def record_error(error_type: str) -> None:
     ERRORS[error_type] += 1
-
+    ERROR_TIMESTAMPS.append(time.time())
 
 
 def percentile(values: list[int], p: int) -> float:
@@ -36,17 +46,40 @@ def percentile(values: list[int], p: int) -> float:
     return float(items[idx])
 
 
+def error_rate_pct() -> float:
+    total = TRAFFIC
+    if total == 0:
+        return 0.0
+    return round(sum(ERRORS.values()) / total * 100, 2)
+
+
+def requests_in_window(window_seconds: int = 3600) -> int:
+    cutoff = time.time() - window_seconds
+    return sum(1 for ts in REQUEST_TIMESTAMPS if ts >= cutoff)
+
+
+def cost_in_window(window_seconds: int = 3600) -> float:
+    cutoff = time.time() - window_seconds
+    pairs = list(zip(REQUEST_TIMESTAMPS, REQUEST_COSTS))
+    return round(sum(cost for ts, cost in pairs if ts >= cutoff), 6)
+
 
 def snapshot() -> dict:
     return {
         "traffic": TRAFFIC,
+        "traffic_last_1h": requests_in_window(3600),
         "latency_p50": percentile(REQUEST_LATENCIES, 50),
         "latency_p95": percentile(REQUEST_LATENCIES, 95),
         "latency_p99": percentile(REQUEST_LATENCIES, 99),
         "avg_cost_usd": round(mean(REQUEST_COSTS), 4) if REQUEST_COSTS else 0.0,
         "total_cost_usd": round(sum(REQUEST_COSTS), 4),
+        "cost_last_1h_usd": cost_in_window(3600),
         "tokens_in_total": sum(REQUEST_TOKENS_IN),
         "tokens_out_total": sum(REQUEST_TOKENS_OUT),
+        "error_count": sum(ERRORS.values()),
+        "error_rate_pct": error_rate_pct(),
         "error_breakdown": dict(ERRORS),
         "quality_avg": round(mean(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
+        "quality_min": round(min(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
+        "quality_max": round(max(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
     }
